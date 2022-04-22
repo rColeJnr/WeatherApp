@@ -4,14 +4,18 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
+import android.text.InputType
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceManager
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.rick.weatherapp.databinding.ActivityMainBinding
@@ -38,6 +42,55 @@ class MainActivity : AppCompatActivity() {
 
         binding.fab.setOnClickListener{
             getLocation()
+        }
+        binding.root.setOnRefreshListener {
+            refreshData()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        binding.root.isRefreshing = true
+        refreshData()
+    }
+
+    private fun refreshData() {
+        when(val location = sharedPreferences.getString("location", null)) {
+            null, "currentLocation" -> getLocation()
+            else -> updateWeatherData("$CITY_NAME_URL$location")
+        }
+        binding.root.isRefreshing = false
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId){
+            R.id.refresh -> {binding.root.isRefreshing = true; refreshData()}
+            R.id.change_city -> showInputDialog()
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    private fun showInputDialog() {
+        val input = EditText(this@MainActivity)
+        input.inputType = InputType.TYPE_CLASS_TEXT
+
+        AlertDialog.Builder(this).apply {
+            setTitle(getString(R.string.change_city))
+            setView(input)
+            setPositiveButton(getString(R.string.go)){ _,_ ->
+                val city = input.text.toString()
+                updateWeatherData("$CITY_NAME_URL$city")
+                sharedPreferences.edit().apply{
+                    putString("location", city)
+                    apply()
+                }
+            }
+            show()
         }
     }
 
